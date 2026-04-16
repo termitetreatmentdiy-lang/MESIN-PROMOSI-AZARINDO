@@ -80,7 +80,7 @@ class ProBrochure(FPDF):
         
         self.set_font('Helvetica', 'I', 8)
         clean_link = self.website_link.replace("https://", "").replace("http://", "").rstrip("/")
-        self.cell(0, 4, f'Authorized Representative: Adjie Agung | {clean_link}', align='C', ln=True)
+        self.cell(0, 4, f'Authorized Representative: Azarindo.id | {clean_link}', align='C', ln=True)
 
 # --- UI DASHBOARD ---
 st.title("🚀 Ultimate Brochure Engine + Full Auto")
@@ -92,10 +92,8 @@ with col1:
     st.subheader("1. Visual & Identitas")
     brand = st.selectbox("Pilih Merek", ["AIMIX", "TATSUO"])
     
-    if brand == "AIMIX":
-        default_link = "https://aimix-self-loading-mixer.netlify.app/"
-    else:
-        default_link = "https://tatsuosales-id.netlify.app/#/"
+    if brand == "AIMIX+TATSUO":
+        default_link = "https://azarindo.id/"
 
     logo_file = st.file_uploader("Upload Logo Brand (PNG Transparan)", type=['png', 'jpg', 'jpeg'])
     foto = st.file_uploader("Upload Foto Unit Utama", type=['png', 'jpg', 'jpeg'])
@@ -140,7 +138,7 @@ with col2:
         pdf_path_to_read = os.path.join(CATALOG_DIR, pilihan_katalog)
         st.info(f"⚡ Menggunakan katalog dari memori: **{pilihan_katalog}**")
         
-    wa_num = st.text_input("Nomor WhatsApp (Contoh: +628123456789)", "+6281230857759")
+    wa_num = st.text_input("Nomor WhatsApp (Contoh: +628123456789)", "+62 823-7626-2781")
     
     if st.button("✨ Tarik Data & Isi Formulir Otomatis"):
         if not ref_link and not pdf_path_to_read:
@@ -400,3 +398,8 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
                 st.download_button("⬇️ Download High-Res PDF", data=pdf_bytes, file_name=f"{brand}_Brosur.pdf", mime="application/pdf")
             with dl_col2:
                 st.download_button("🖼️ Download Gambar (PNG)", data=png_bytes, file_name=f"{brand}_Brosur.png", mime="image/png")
+
+# ==========================================
+# FOOTER
+# ==========================================
+st.markdown("<div class='footer'>Architected & Developed by <b>Adjie Agung</b> <br> Ultimate Brochure Engine + Full Auto - Heavy-Asset Domination System</div>", unsafe_allow_html=True) 
