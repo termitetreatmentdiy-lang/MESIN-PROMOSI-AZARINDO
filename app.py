@@ -193,8 +193,3 @@ with col2:
                     # --- BATAS AKHIR PROMPT ---
 
                     api_key = st.secrets["GOOGLE_API_KEY"]
-
-# ==========================================
-# FOOTER
-# ==========================================
-st.markdown("<div class='footer'>Architected & Developed by <b>Adjie Agung</b> <br> VORTEX 4.0 - Heavy-Asset Domination System</div>", unsafe_allow_html=True) 
