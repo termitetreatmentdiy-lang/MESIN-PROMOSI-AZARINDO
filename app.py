@@ -94,7 +94,7 @@ with col1:
     brand = st.selectbox("Pilih Merek", ["AIMIX", "TATSUO"])
     
     # Perbaikan NameError: default_link didefinisikan secara global
-    default_link = "https://azarindo.id/aimix/" if brand == "AIMIX" else "https://azarindo.id/tatsuo/"
+    default_link = "https://azarindo.id" if brand == "AIMIX" else "https://azarindo.id"
 
     logo_file = st.file_uploader("Upload Logo Brand (PNG Transparan)", type=['png', 'jpg', 'jpeg'])
     foto = st.file_uploader("Upload Foto Unit Utama", type=['png', 'jpg', 'jpeg'])
