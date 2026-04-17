@@ -6,7 +6,6 @@ import uuid
 import qrcode
 import requests
 import json
-from bs4 import BeautifulSoup
 import fitz  # PyMuPDF
 from PIL import Image
 import time
@@ -53,9 +52,71 @@ def tarik_data_ai(scraped_text):
                 if match:
                     return json.loads(match.group(0))
             time.sleep(2)
-        except:
+        except Exception as e:
+            st.warning(f"Percobaan {attempt+1} gagal: {e}")
             continue
     return None
+
+# --- FUNGSI GENERATE PDF ---
+def generate_pdf(data, logo_file=None, foto_file=None, wa_num="+62 823-7626-2781"):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 16)
+
+    # Judul
+    pdf.cell(200, 10, data.get("headline", "BROSUR PRODUK"), ln=True, align="C")
+    pdf.ln(10)
+
+    # Logo
+    if logo_file:
+        logo_path = f"temp_logo_{uuid.uuid4().hex}.png"
+        with open(logo_path, "wb") as f: f.write(logo_file.getbuffer())
+        pdf.image(logo_path, x=10, y=25, w=40)
+        os.remove(logo_path)
+
+    # Foto Unit
+    if foto_file:
+        foto_path = f"temp_foto_{uuid.uuid4().hex}.png"
+        with open(foto_path, "wb") as f: f.write(foto_file.getbuffer())
+        pdf.image(foto_path, x=60, y=25, w=100)
+        os.remove(foto_path)
+
+    pdf.ln(80)
+
+    # Spesifikasi
+    pdf.set_font("Arial", '', 12)
+    pdf.cell(200, 10, f"Tipe Unit: {data.get('tipe_unit', '-')}", ln=True)
+    pdf.cell(200, 10, f"Engine: {data.get('engine', '-')}", ln=True)
+    pdf.cell(200, 10, f"Hydraulic: {data.get('hydraulic', '-')}", ln=True)
+    pdf.cell(200, 10, f"Bobot: {data.get('bobot', '-')}", ln=True)
+
+    pdf.ln(10)
+
+    # Badge
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(200, 10, f"• {data.get('badge1', '')}", ln=True)
+    pdf.cell(200, 10, f"• {data.get('badge2', '')}", ln=True)
+    pdf.cell(200, 10, f"• {data.get('badge3', '')}", ln=True)
+
+    pdf.ln(10)
+
+    # Copywriting
+    pdf.set_font("Arial", '', 11)
+    pdf.multi_cell(0, 10, data.get("copywriting", "JUDUL | Deskripsi..."))
+
+    pdf.ln(10)
+
+    # QR WhatsApp
+    qr = qrcode.make(f"https://wa.me/{wa_num.replace('+', '').replace(' ', '')}")
+    qr_path = f"temp_qr_{uuid.uuid4().hex}.png"
+    qr.save(qr_path)
+    pdf.image(qr_path, x=160, y=220, w=40)
+    os.remove(qr_path)
+
+    # Simpan PDF
+    filename = f"brosur_{uuid.uuid4().hex}.pdf"
+    pdf.output(filename)
+    return filename
 
 # --- UI DASHBOARD ---
 st.title("🚀 Ultimate Brochure Engine + Full Auto")
@@ -68,7 +129,6 @@ with col1:
     logo_file = st.file_uploader("Upload Logo", type=['png', 'jpg'])
     foto = st.file_uploader("Upload Foto Unit", type=['png', 'jpg'])
     
-    # Input Fields (Terhubung ke Session State)
     st.markdown("---")
     model = st.text_input("Tipe Unit", value=st.session_state.data_ai.get('tipe_unit', "MIXER CONCRETE PUMP"))
     headline = st.text_input("Headline Utama", value=st.session_state.data_ai.get('headline', "READY STOCK UNIT TERBAIK"))
@@ -99,24 +159,37 @@ with col2:
         with st.spinner("AI sedang membaca data..."):
             scraped_text = ""
             if pdf_ref:
-                doc = fitz.open(stream=pdf_ref.read(), filetype="pdf")
+                doc = fitz.open(pdf_path)
                 for page in doc: scraped_text += page.get_text()
             
             hasil = tarik_data_ai(scraped_text)
             if hasil:
                 st.session_state.data_ai = hasil
-                st.success("✅ Data Berhasil Ditarik! Klik Tombol Sekali Lagi Jika Layar Belum Berubah.")
+                st.success("✅ Data Berhasil Ditarik!")
                 st.rerun()
             else:
                 st.error("Gagal menarik data. Pastikan API Key benar dan PDF bukan hasil scan gambar.")
 
     final_copy = st.text_area("Hasil Copywriting", value=st.session_state.data_ai.get('copywriting', "JUDUL | Deskripsi..."), height=150)
 
-# --- TOMBOL GENERATE PDF (Sama seperti sebelumnya) ---
+# --- TOMBOL GENERATE PDF ---
 if st.button("🌟 Generate Ultimate Brochure"):
-    st.info("Fitur PDF siap dijalankan dengan data di atas!")
+    data = {
+        "tipe_unit": model,
+        "headline": headline,
+        "engine": spec_engine,
+        "hydraulic": spec_cap,
+        "bobot": spec_weight,
+        "badge1": badge1,
+        "badge2": badge2,
+        "badge3": badge3,
+        "copywriting": final_copy
+    }
+    filename = generate_pdf(data, logo_file, foto, wa_num)
+    with open(filename, "rb") as f:
+        st.download_button("⬇️ Download Brosur PDF", f, file_name=filename)
 
 # ==========================================
 # FOOTER
 # ==========================================
-st.markdown("<div class='footer'>Architected & Developed by <b>Adjie Agung</b> <br> VORTEX 4.0 - Heavy-Asset Domination System</div>", unsafe_allow_html=True) 
+st.markdown("<div class='footer'>Architected & Developed by <b>Adjie Agung</b> <br> VORTEX 4.0 - Heavy-Asset Domination System</div>", unsafe_allow_html=True)
