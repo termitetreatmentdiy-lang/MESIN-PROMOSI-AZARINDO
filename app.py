@@ -142,54 +142,69 @@ with col2:
             with st.spinner("Mesin gemini-2.5-flash sedang mengekstrak data..."):
                 scraped_text = ""
                 
-                # Scraping Website dengan User-Agent
+                # Scraping Website
                 if ref_link:
                     try:
-                        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+                        headers = {"User-Agent": "Mozilla/5.0"}
                         res = requests.get(ref_link, headers=headers, timeout=10)
                         if res.status_code == 200:
                             soup = BeautifulSoup(res.text, 'html.parser')
                             scraped_text += f"DATA WEBSITE:\n{soup.get_text(separator=' ', strip=True)[:3000]}\n\n"
-                    except Exception as e:
-                        st.warning("Website menolak dibaca bot, fokus ke PDF...")
+                    except:
+                        pass
 
-                # Membaca PDF dengan Fitz (PyMuPDF)
+                # Membaca PDF
                 if pdf_path_to_read:
                     try:
                         with fitz.open(pdf_path_to_read) as doc:
-                            scraped_text += "DATA KATALOG PDF:\n"
                             for page in doc:
                                 scraped_text += page.get_text() + "\n"
-                    except Exception as e:
-                        st.error("Gagal membaca PDF.")
+                    except:
+                        pass
 
                 scraped_text = scraped_text[:12000]
 
+                # --- PERBAIKAN INDENTASI DI SINI ---
                 if len(scraped_text) < 50:
-                    st.error("⚠️ Data sumber terlalu sedikit atau PDF berupa gambar scan. AI butuh teks digital.")
+                    st.error("⚠️ Data sumber tidak terbaca (PDF Scan/Web Proteksi).")
                 else:
-                    else:
-                    # --- PASTIKAN BLOK INI TERSALIN PENUH ---
                     prompt = f"""
-                    Anda adalah Data Extractor dan Copywriter Alat Berat.
-                    Baca data spesifikasi ini:
+                    Anda adalah Data Extractor Alat Berat. Ekstrak teks ini ke JSON:
                     {scraped_text}
-                    
-                    TUGAS WAJIB:
-                    Kembalikan HANYA format JSON valid tanpa teks pengantar apapun. Strukturnya:
-                    {{
-                        "tipe_unit": "Ekstrak nama model/tipe unit",
-                        "headline": "Satu kalimat headline jualan powerful (maks 6 kata)",
-                        "engine": "Ekstrak spek mesin/engine power",
-                        "hydraulic": "Ekstrak sistem hidrolik",
-                        "bobot": "Ekstrak berat unit",
-                        "badge1": "Keunggulan garansi/stok",
-                        "badge2": "Keunggulan layanan",
-                        "badge3": "Keunggulan lain",
-                        "copywriting": "Buat 4 poin keunggulan. Format: JUDUL | Deskripsi singkat 2 kalimat. Pisah dengan enter."
-                    }}
-                    Jika data tidak ada, isi dengan strip "-".
+                    Format: tipe_unit, headline, engine, hydraulic, bobot, badge1, badge2, badge3, copywriting (JUDUL | Deskripsi).
                     """
-                    # --- BATAS AKHIR PROMPT ---
 
                     api_key = st.secrets["GOOGLE_API_KEY"]
+                    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+                    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+                    
+                    # Auto-Retry 3x
+                    for attempt in range(3):
+                        try:
+                            resp = requests.post(api_url, json=payload, timeout=30)
+                            if resp.status_code == 200:
+                                raw_res = resp.json()['candidates'][0]['content']['parts'][0]['text']
+                                clean_json = raw_res.replace("```json", "").replace("```", "").strip()
+                                match = re.search(r'\{.*\}', clean_json, re.DOTALL)
+                                if match:
+                                    ext = json.loads(match.group(0))
+                                    st.session_state.ai_tipe_unit = ext.get('tipe_unit', '-').upper()
+                                    st.session_state.ai_headline = ext.get('headline', '-').upper()
+                                    st.session_state.ai_engine = ext.get('engine', '-')
+                                    st.session_state.ai_hydraulic = ext.get('hydraulic', '-')
+                                    st.session_state.ai_bobot = ext.get('bobot', '-')
+                                    st.session_state.ai_badge1 = ext.get('badge1', 'GARANSI').upper()
+                                    st.session_state.ai_badge2 = ext.get('badge2', 'READY').upper()
+                                    st.session_state.ai_badge3 = ext.get('badge3', 'TEKNISI').upper()
+                                    st.session_state.ai_copywriting = ext.get('copywriting', '-')
+                                    st.session_state.update_from_ai = True
+                                    st.rerun()
+                                    break
+                            time.sleep(2)
+                        except:
+                            time.sleep(2)
+
+# ==========================================
+# FOOTER
+# ==========================================
+st.markdown("<div class='footer'>Architected & Developed by <b>Adjie Agung</b> <br> VORTEX 4.0 - Heavy-Asset Domination System</div>", unsafe_allow_html=True) 
