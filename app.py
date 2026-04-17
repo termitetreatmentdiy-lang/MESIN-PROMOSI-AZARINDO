@@ -92,7 +92,7 @@ with col1:
     st.subheader("1. Visual & Identitas")
     brand = st.selectbox("Pilih Merek", ["AIMIX", "TATSUO"])
     
-    if brand == "AIMIX+TATSUO":
+    if brand == "AIMIX, "TATSUO":
         default_link = "https://azarindo.id/"
 
     logo_file = st.file_uploader("Upload Logo Brand (PNG Transparan)", type=['png', 'jpg', 'jpeg'])
