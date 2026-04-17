@@ -7,11 +7,10 @@ import qrcode
 import requests
 import json
 from bs4 import BeautifulSoup
-import PyPDF2
-import fitz
+import fitz  # PyMuPDF (Lebih akurat untuk spek alat berat)
 from PIL import Image
 import time
-import re  
+import re
 
 st.set_page_config(page_title="Ultimate Pro Brochure Engine", layout="wide")
 
@@ -24,7 +23,6 @@ if not os.path.exists(CATALOG_DIR):
 if 'update_from_ai' not in st.session_state:
     st.session_state.update_from_ai = False
 
-# Jika AI baru saja selesai, pindahkan data dari "bayangan" ke kotak asli
 if st.session_state.update_from_ai:
     st.session_state.form_tipe_unit = st.session_state.ai_tipe_unit
     st.session_state.form_headline = st.session_state.ai_headline
@@ -35,18 +33,24 @@ if st.session_state.update_from_ai:
     st.session_state.form_badge2 = st.session_state.ai_badge2
     st.session_state.form_badge3 = st.session_state.ai_badge3
     st.session_state.form_copywriting = st.session_state.ai_copywriting
-    st.session_state.update_from_ai = False # Lepaskan kendali agar user bisa edit manual
+    st.session_state.update_from_ai = False 
 
-# --- 2. INISIALISASI NILAI DEFAULT KOTAK MERAH ---
-if 'form_tipe_unit' not in st.session_state: st.session_state.form_tipe_unit = "EXCAVATOR / WHEEL LOADER"
-if 'form_headline' not in st.session_state: st.session_state.form_headline = "LEBIH CERDAS, LEBIH AKURAT, LEBIH ANDAL"
-if 'form_engine' not in st.session_state: st.session_state.form_engine = "Yanmar 4TNV98-ZCVLGC"
-if 'form_hydraulic' not in st.session_state: st.session_state.form_hydraulic = "Rexroth"
-if 'form_bobot' not in st.session_state: st.session_state.form_bobot = "9600kg"
-if 'form_badge1' not in st.session_state: st.session_state.form_badge1 = "GARANSI 1 TAHUN"
-if 'form_badge2' not in st.session_state: st.session_state.form_badge2 = "READY STOCK"
-if 'form_badge3' not in st.session_state: st.session_state.form_badge3 = "TEKNISI 24/7"
-if 'form_copywriting' not in st.session_state: st.session_state.form_copywriting = "BELUM ADA DATA.\nSilakan klik tombol di atas atau ketik manual dengan format:\nJUDUL | Deskripsi..."
+# --- 2. INISIALISASI NILAI DEFAULT FORM ---
+defaults = {
+    'form_tipe_unit': "EXCAVATOR / WHEEL LOADER",
+    'form_headline': "LEBIH CERDAS, LEBIH AKURAT, LEBIH ANDAL",
+    'form_engine': "-",
+    'form_hydraulic': "-",
+    'form_bobot': "-",
+    'form_badge1': "GARANSI 1 TAHUN",
+    'form_badge2': "READY STOCK",
+    'form_badge3': "TEKNISI 24/7",
+    'form_copywriting': "JUDUL | Deskripsi singkat..."
+}
+
+for key, val in defaults.items():
+    if key not in st.session_state:
+        st.session_state[key] = val
 
 class ProBrochure(FPDF):
     def __init__(self, brand_color, brand_name, website_link, logo_path, wa_number):
@@ -60,31 +64,28 @@ class ProBrochure(FPDF):
     def header(self):
         self.set_fill_color(*self.brand_color)
         self.rect(0, 0, 210, 4, 'F')
-        
         if self.logo_path and os.path.exists(self.logo_path):
             self.image(self.logo_path, x=160, y=8, w=40)
         else:
-            self.ln(5)
             self.set_font('Helvetica', 'B', 24)
             self.set_text_color(*self.brand_color)
-            self.cell(0, 10, self.brand_name, ln=True, align='R')
+            self.set_xy(160, 10)
+            self.cell(40, 10, self.brand_name, align='R')
 
     def footer(self):
         self.set_y(-25)
         self.set_draw_color(*self.brand_color)
         self.line(10, 272, 200, 272)
-        
         self.set_text_color(50, 50, 50)
         self.set_font('Helvetica', 'B', 9)
         self.cell(0, 6, f'{self.brand_name} - SMART EQUIPMENT FOR SMART BUILDERS', align='C', ln=True)
-        
-        self.set_font('Helvetica', 'I', 8)
         clean_link = self.website_link.replace("https://", "").replace("http://", "").rstrip("/")
+        self.set_font('Helvetica', 'I', 8)
         self.cell(0, 4, f'Authorized Representative: Azarindo.id | {clean_link}', align='C', ln=True)
 
 # --- UI DASHBOARD ---
 st.title("🚀 Ultimate Brochure Engine + Full Auto")
-st.write("Cukup Tarik Data AI, Kotak Merah akan terisi. Bapak bebas mengedit manual jika ada yang kurang pas!")
+st.write("Cukup Tarik Data AI, Kotak Merah akan terisi otomatis!")
 
 col1, col2 = st.columns([1, 1.2])
 
@@ -92,14 +93,13 @@ with col1:
     st.subheader("1. Visual & Identitas")
     brand = st.selectbox("Pilih Merek", ["AIMIX", "TATSUO"])
     
-    if brand == "AIMIX, "TATSUO":
-        default_link = "https://azarindo.id/"
+    # Perbaikan NameError: default_link didefinisikan secara global
+    default_link = "https://azarindo.id/aimix/" if brand == "AIMIX" else "https://azarindo.id/tatsuo/"
 
     logo_file = st.file_uploader("Upload Logo Brand (PNG Transparan)", type=['png', 'jpg', 'jpeg'])
     foto = st.file_uploader("Upload Foto Unit Utama", type=['png', 'jpg', 'jpeg'])
     
     st.markdown("---")
-    # KOTAK DIHUBUNGKAN DENGAN KEY, SEHINGGA BISA DIEDIT MANUAL TANPA REFRESH MENGGANGGU
     model = st.text_input("Tipe Unit", key="form_tipe_unit")
     headline = st.text_input("Headline Utama", key="form_headline")
     
@@ -117,289 +117,132 @@ with col1:
 
 with col2:
     st.subheader("2. AI Data Extractor & Copywriter")
-    
     ref_link = st.text_input("Link Website Produk (Opsional)", default_link)
     
-    st.markdown("**📂 Database Katalog (PDF)**")
     saved_files = [f for f in os.listdir(CATALOG_DIR) if f.endswith('.pdf')]
     pilihan_katalog = st.selectbox("Pilih File dari Memori / Upload Baru", ["-- Upload Katalog Baru --"] + saved_files)
     
     pdf_path_to_read = None
-    
     if pilihan_katalog == "-- Upload Katalog Baru --":
         pdf_ref = st.file_uploader("Upload Katalog Spesifikasi (PDF)", type=['pdf'])
         if pdf_ref:
-            save_path = os.path.join(CATALOG_DIR, pdf_ref.name)
-            with open(save_path, "wb") as f:
+            pdf_path_to_read = os.path.join(CATALOG_DIR, pdf_ref.name)
+            with open(pdf_path_to_read, "wb") as f:
                 f.write(pdf_ref.getbuffer())
-            st.success(f"✅ Katalog '{pdf_ref.name}' tersimpan ke memori!")
-            pdf_path_to_read = save_path
+            st.success(f"✅ Katalog '{pdf_ref.name}' tersimpan!")
     else:
         pdf_path_to_read = os.path.join(CATALOG_DIR, pilihan_katalog)
-        st.info(f"⚡ Menggunakan katalog dari memori: **{pilihan_katalog}**")
-        
-    wa_num = st.text_input("Nomor WhatsApp (Contoh: +628123456789)", "+62 823-7626-2781")
+
+    wa_num = st.text_input("Nomor WhatsApp Sales", "+62 823-7626-2781")
     
     if st.button("✨ Tarik Data & Isi Formulir Otomatis"):
-        if not ref_link and not pdf_path_to_read:
-            st.error("Silakan masukkan Link Website atau pilih/upload Katalog PDF.")
-        else:
-            with st.spinner("AI sedang membaca data dan mengekstrak spesifikasi untuk Anda..."):
-                try:
-                    api_key = st.secrets["GOOGLE_API_KEY"]
-                    scraped_text = ""
-                    
-                    if ref_link:
-                        try:
-                            res = requests.get(ref_link, timeout=10)
-                            soup = BeautifulSoup(res.text, 'html.parser')
-                            scraped_text += "DATA WEBSITE:\n" + soup.get_text(separator=' ', strip=True)[:3000] + "\n\n"
-                        except: pass
+        with st.spinner("AI sedang membaca data..."):
+            try:
+                scraped_text = ""
+                # Scraping Website dengan User-Agent
+                if ref_link:
+                    headers = {"User-Agent": "Mozilla/5.0"}
+                    res = requests.get(ref_link, headers=headers, timeout=10)
+                    soup = BeautifulSoup(res.text, 'html.parser')
+                    scraped_text += f"WEBSITE: {soup.get_text()[:2000]}\n"
+                
+                # Membaca PDF dengan Fitz (PyMuPDF)
+                if pdf_path_to_read:
+                    with fitz.open(pdf_path_to_read) as doc:
+                        for page in doc:
+                            scraped_text += page.get_text()
+                
+                # Prompt ke Gemini
+                prompt = f"Ekstrak data spek alat berat berikut ke JSON: {scraped_text[:8000]}. Format: tipe_unit, headline, engine, hydraulic, bobot, badge1, badge2, badge3, copywriting (JUDUL | Deskripsi)."
+                
+                api_key = st.secrets["GOOGLE_API_KEY"]
+                api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+                payload = {"contents": [{"parts": [{"text": prompt}]}]}
+                
+                resp = requests.post(api_url, json=payload, timeout=30)
+                if resp.status_code == 200:
+                    raw_res = resp.json()['candidates'][0]['content']['parts'][0]['text']
+                    match = re.search(r'\{.*\}', raw_res.replace("```json", "").replace("```", ""), re.DOTALL)
+                    if match:
+                        ext = json.loads(match.group(0))
+                        st.session_state.ai_tipe_unit = ext.get('tipe_unit', '-').upper()
+                        st.session_state.ai_headline = ext.get('headline', '-').upper()
+                        st.session_state.ai_engine = ext.get('engine', '-')
+                        st.session_state.ai_hydraulic = ext.get('hydraulic', '-')
+                        st.session_state.ai_bobot = ext.get('bobot', '-')
+                        st.session_state.ai_badge1 = ext.get('badge1', 'GARANSI').upper()
+                        st.session_state.ai_badge2 = ext.get('badge2', 'READY').upper()
+                        st.session_state.ai_badge3 = ext.get('badge3', 'TEKNISI').upper()
+                        st.session_state.ai_copywriting = ext.get('copywriting', '-')
+                        st.session_state.update_from_ai = True
+                        st.rerun()
+            except Exception as e:
+                st.error(f"Gagal ekstrak data: {e}")
 
-                    if pdf_path_to_read:
-                        try:
-                            with open(pdf_path_to_read, "rb") as file_pdf:
-                                pdf_reader = PyPDF2.PdfReader(file_pdf)
-                                scraped_text += "DATA KATALOG PDF:\n"
-                                num_pages = min(10, len(pdf_reader.pages))
-                                for i in range(num_pages):
-                                    page = pdf_reader.pages[i]
-                                    text = page.extract_text()
-                                    if text: scraped_text += text + "\n"
-                        except: pass
-                            
-                    scraped_text = scraped_text[:12000] 
-                    
-                    prompt = f"""
-                    Anda adalah Data Extractor dan Copywriter Alat Berat.
-                    Baca data spesifikasi ini:
-                    {scraped_text}
-                    
-                    TUGAS WAJIB:
-                    Kembalikan HANYA format JSON valid tanpa teks pengantar apapun.
-                    Strukturnya harus persis seperti ini:
-                    {{
-                        "tipe_unit": "Ekstrak nama model/tipe unit. Jika tidak ada tulis -",
-                        "headline": "Satu kalimat headline jualan yang sangat powerful (maks 6 kata)",
-                        "engine": "Ekstrak spek mesin/engine power. Jika tidak ada tulis -",
-                        "hydraulic": "Ekstrak sistem hidrolik/kapasitas. Jika tidak ada tulis -",
-                        "bobot": "Ekstrak berat/bobot unit. Jika tidak ada tulis -",
-                        "badge1": "Keunggulan garansi/stok. Contoh: GARANSI 1 TAHUN",
-                        "badge2": "Keunggulan layanan. Contoh: SPAREPART TERJAMIN",
-                        "badge3": "Keunggulan lain. Contoh: READY STOCK",
-                        "copywriting": "Buat 4 poin keunggulan alat berat ini. Format per baris wajib: JUDUL | Deskripsi singkat 2 kalimat. Tiap poin dipisah dengan enter/newline."
-                    }}
-                    """
-                    
-                    api_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={api_key}"
-                    headers = {'Content-Type': 'application/json'}
-                    payload = {"contents": [{"parts": [{"text": prompt}]}]}
-                    
-                    max_retries = 3
-                    
-                    for attempt in range(max_retries):
-                        try:
-                            response = requests.post(api_url, headers=headers, json=payload, timeout=40)
-                            
-                            if response.status_code == 200:
-                                data = response.json()
-                                hasil_ai_mentah = data['candidates'][0]['content']['parts'][0]['text']
-                                
-                                match = re.search(r'\{.*\}', hasil_ai_mentah, re.DOTALL)
-                                if match:
-                                    json_str = match.group(0)
-                                    extracted_data = json.loads(json_str)
-                                    
-                                    # SIMPAN KE SISTEM BAYANGAN
-                                    st.session_state.ai_tipe_unit = extracted_data.get('tipe_unit', st.session_state.form_tipe_unit).upper()
-                                    st.session_state.ai_headline = extracted_data.get('headline', st.session_state.form_headline).upper()
-                                    st.session_state.ai_engine = extracted_data.get('engine', st.session_state.form_engine)
-                                    st.session_state.ai_hydraulic = extracted_data.get('hydraulic', st.session_state.form_hydraulic)
-                                    st.session_state.ai_bobot = extracted_data.get('bobot', st.session_state.form_bobot)
-                                    st.session_state.ai_badge1 = extracted_data.get('badge1', st.session_state.form_badge1).upper()
-                                    st.session_state.ai_badge2 = extracted_data.get('badge2', st.session_state.form_badge2).upper()
-                                    st.session_state.ai_badge3 = extracted_data.get('badge3', st.session_state.form_badge3).upper()
-                                    st.session_state.ai_copywriting = extracted_data.get('copywriting', st.session_state.form_copywriting)
-                                    
-                                    # BERI SINYAL UNTUK MEMINDAHKAN DATA KE KOTAK
-                                    st.session_state.update_from_ai = True
-                                    
-                                    st.success("✅ Berhasil mengekstrak data! Formulir telah diisi otomatis.")
-                                    time.sleep(1) 
-                                    st.rerun() # Refresh agar data bayangan masuk ke kotak
-                                else:
-                                    st.error("AI gagal memformat data dengan benar. Silakan coba lagi.")
-                                
-                                break
-                            else:
-                                if attempt < max_retries - 1:
-                                    time.sleep(3) 
-                                else:
-                                    try:
-                                        err_data = response.json()
-                                        error_msg = err_data.get('error', {}).get('message', str(err_data))
-                                    except:
-                                        error_msg = response.text
-                                    st.error(f"Gagal memanggil API Google. Status: {response.status_code}. Detail: {error_msg}")
-                        except requests.exceptions.RequestException as e:
-                            if attempt < max_retries - 1: time.sleep(3)
-                            else: st.error(f"Koneksi terputus. Detail Error: {e}")
-                        
-                except Exception as e:
-                    st.error(f"Terjadi kesalahan teknis internal: {e}")
+    final_copy = st.text_area("Hasil Copywriting", key="form_copywriting", height=150)
 
-    final_copy = st.text_area("Hasil Copywriting (Bisa diedit manual)", key="form_copywriting", height=150)
-
-st.markdown("---")
-
-if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
+# --- GENERATE PDF ---
+if st.button("🌟 Generate Ultimate Brochure"):
     if not foto:
-        st.warning("Mohon upload 1 foto utama unit.")
+        st.warning("Upload foto unit dulu, Pak.")
     else:
-        with st.spinner("Merancang layout eksklusif, merender Watermark & Badges..."):
+        with st.spinner("Sedang merancang brosur..."):
             b_color = (0, 82, 155) if brand == "AIMIX" else (204, 0, 0)
             
-            logo_path = None
-            if logo_file:
-                logo_path = f"temp_logo_{uuid.uuid4()}.png"
-                with open(logo_path, "wb") as f:
-                    f.write(logo_file.getbuffer())
+            # Simpan Logo & Foto Temporary
+            l_path = f"temp_l_{uuid.uuid4()}.png"
+            if logo_file: 
+                with open(l_path, "wb") as f: f.write(logo_file.getbuffer())
             
-            pdf = ProBrochure(brand_color=b_color, brand_name=brand, website_link=ref_link, logo_path=logo_path, wa_number=wa_num)
+            f_path = f"temp_f_{uuid.uuid4()}.png"
+            with open(f_path, "wb") as f: f.write(foto.getbuffer())
+
+            pdf = ProBrochure(b_color, brand, ref_link, l_path if logo_file else None, wa_num)
             pdf.add_page()
             
-            # --- PEMBUATAN WATERMARK TRANSPARAN ---
-            if logo_path and os.path.exists(logo_path):
-                try:
-                    wm_path = f"wm_{uuid.uuid4()}.png"
-                    img = Image.open(logo_path).convert("RGBA")
-                    alpha = img.split()[3]
-                    alpha = alpha.point(lambda p: p * 0.1)
-                    img.putalpha(alpha)
-                    img.save(wm_path, "PNG")
-                    pdf.image(wm_path, x=35, y=90, w=140)
-                    os.remove(wm_path)
-                except:
-                    pass 
-
-            # --- QR CODE DI POJOK KIRI ATAS ---
-            if ref_link:
-                qr = qrcode.make(ref_link)
-                qr_path = f"qr_{uuid.uuid4()}.png"
-                qr.save(qr_path)
-                
-                pdf.image(qr_path, x=12, y=8, w=22, h=22)
-                pdf.set_xy(8, 31)
-                pdf.set_font('Helvetica', 'B', 6)
-                pdf.set_text_color(*b_color)
-                pdf.cell(30, 3, "SCAN FOR DETAILS", align='C')
-                if os.path.exists(qr_path): os.remove(qr_path)
+            # Hero Image
+            pdf.image(f_path, x=40, y=14, w=130)
             
-            # --- GAMBAR UTAMA DIGESER KE ATAS ---
-            img_path = f"temp_hero_{uuid.uuid4()}.png"
-            with open(img_path, "wb") as f:
-                f.write(foto.getbuffer())
-            
-            pdf.image(img_path, x=40, y=14, w=130)
-            if os.path.exists(img_path): os.remove(img_path)
-            
-            # --- HEADLINE & SPECS MENGGUNAKAN VARIABEL DARI KOTAK ---
+            # Content
             pdf.set_y(115)
-            pdf.set_font('Helvetica', 'B', 18) 
+            pdf.set_font('Helvetica', 'B', 18)
             pdf.set_text_color(20, 20, 20)
             pdf.multi_cell(0, 10, f"{brand} {model} - {headline}", align='C')
             
-            pdf.ln(2)
+            # Spek Table (Gray Box)
             pdf.set_fill_color(245, 245, 245)
-            pdf.rect(10, pdf.get_y(), 190, 12, 'F')
-            
-            pdf.set_y(pdf.get_y() + 3)
-            pdf.set_font('Helvetica', 'B', 9)
-            pdf.set_text_color(80, 80, 80)
+            pdf.rect(10, pdf.get_y()+2, 190, 12, 'F')
+            pdf.set_y(pdf.get_y()+5)
+            pdf.set_font('Helvetica', 'B', 8)
             pdf.cell(63, 6, f"ENGINE: {spec_engine.upper()}", align='C')
             pdf.cell(63, 6, f"HYDRAULIC: {spec_cap.upper()}", align='C')
             pdf.cell(63, 6, f"BOBOT: {spec_weight.upper()}", align='C', ln=True)
-            
-            # --- TRUST BADGES ---
-            pdf.ln(5)
-            pdf.set_font('Helvetica', 'B', 10)
-            pdf.set_text_color(255, 255, 255)
-            start_x = 10
-            box_w = 60
-            spacing = 5
-            
-            def draw_badge(text, is_last=False):
-                if text.strip() and text != "-":
-                    pdf.cell(box_w, 8, f"{text.upper()}", align='C', fill=True, ln=is_last)
-                else:
-                    pdf.cell(box_w, 8, "", align='C', ln=is_last)
 
-            pdf.set_fill_color(*b_color)
-            pdf.set_xy(start_x, pdf.get_y())
-            draw_badge(badge1)
-            pdf.cell(spacing, 8, "", align='C')
-            draw_badge(badge2)
-            pdf.cell(spacing, 8, "", align='C')
-            draw_badge(badge3, is_last=True)
-            pdf.ln(8)
-            
-            # --- COPYWRITING AI ---
-            lines = final_copy.strip().split('\n')
-            for line in lines:
+            # Copywriting
+            pdf.ln(10)
+            for line in final_copy.strip().split('\n'):
                 if '|' in line:
-                    judul, deskripsi = line.split('|', 1)
-                    judul_bersih = judul.replace("**", "").replace("*", "").strip().upper()
-                    deskripsi_bersih = deskripsi.replace("**", "").replace("*", "").strip()
-                    
-                    pdf.set_fill_color(*b_color)
-                    pdf.ellipse(10, pdf.get_y() + 2, 3, 3, 'F')
-                    
-                    pdf.set_xy(16, pdf.get_y())
-                    pdf.set_font('Helvetica', 'B', 12)
+                    j, d = line.split('|', 1)
+                    pdf.set_font('Helvetica', 'B', 11)
                     pdf.set_text_color(*b_color)
-                    pdf.cell(0, 6, judul_bersih, ln=True)
-                    
-                    pdf.set_xy(16, pdf.get_y())
+                    pdf.cell(0, 6, j.strip().upper(), ln=True)
                     pdf.set_font('Helvetica', '', 10)
                     pdf.set_text_color(50, 50, 50)
-                    pdf.multi_cell(0, 5, deskripsi_bersih)
-                    pdf.ln(4)
-            
-            # --- KONTAK WA ANTI TABRAKAN ---
-            safe_y = max(pdf.get_y() + 6, 245)
-            
-            pdf.set_xy(10, safe_y)
-            pdf.set_font('Helvetica', 'B', 12)
-            pdf.set_text_color(20, 20, 20)
-            pdf.cell(50, 6, "HUBUNGI SALES KAMI:", ln=True)
-            
-            pdf.set_font('Helvetica', 'B', 16)
+                    pdf.multi_cell(0, 5, d.strip())
+                    pdf.ln(3)
+
+            # Kontak WhatsApp
+            pdf.set_y(250)
+            pdf.set_font('Helvetica', 'B', 14)
             pdf.set_text_color(*b_color)
-            wa_clean = wa_num.replace("+", "")
-            wa_link = f"https://wa.me/{wa_clean}"
-            pdf.cell(50, 8, f"WhatsApp: {wa_num}", link=wa_link, ln=True)
+            pdf.cell(0, 10, f"ORDER VIA WHATSAPP: {wa_num}", align='C')
 
-            if logo_path and os.path.exists(logo_path):
-                os.remove(logo_path)
+            # Render & Download
+            pdf_bytes = bytes(pdf.output(dest='S'))
+            st.download_button("⬇️ Download PDF", pdf_bytes, f"Brosur_{model}.pdf", "application/pdf")
+            
+            # Cleanup
+            if os.path.exists(l_path): os.remove(l_path)
+            if os.path.exists(f_path): os.remove(f_path)
 
-            # --- EKSEKUSI MULTI-FORMAT ---
-            out = pdf.output(dest='S')
-            pdf_bytes = bytes(out)
-            
-            doc = fitz.open("pdf", pdf_bytes)
-            page = doc.load_page(0)
-            pix = page.get_pixmap(dpi=300)
-            png_bytes = pix.tobytes("png")
-            
-            st.success("🎉 Brosur Mahakarya berhasil dibuat dengan Layout Sempurna!")
-            
-            dl_col1, dl_col2 = st.columns(2)
-            with dl_col1:
-                st.download_button("⬇️ Download High-Res PDF", data=pdf_bytes, file_name=f"{brand}_Brosur.pdf", mime="application/pdf")
-            with dl_col2:
-                st.download_button("🖼️ Download Gambar (PNG)", data=png_bytes, file_name=f"{brand}_Brosur.png", mime="image/png")
-
-# ==========================================
-# FOOTER
-# ==========================================
-st.markdown("<div class='footer'>Architected & Developed by <b>Adjie Agung</b> <br> Ultimate Brochure Engine + Full Auto - Heavy-Asset Domination System</div>", unsafe_allow_html=True) 
+st.markdown("<div style='text-align: center; color: gray;'>Developed by Adjie Agung - Azarindo System</div>", unsafe_allow_html=True)
