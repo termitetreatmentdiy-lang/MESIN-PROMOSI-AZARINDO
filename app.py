@@ -168,10 +168,33 @@ with col2:
                 if len(scraped_text) < 50:
                     st.error("⚠️ Data sumber terlalu sedikit atau PDF berupa gambar scan. AI butuh teks digital.")
                 else:
+                    else:
+                    # --- PASTIKAN BLOK INI TERSALIN PENUH ---
                     prompt = f"""
                     Anda adalah Data Extractor dan Copywriter Alat Berat.
                     Baca data spesifikasi ini:
                     {scraped_text}
                     
                     TUGAS WAJIB:
-                    Kembalikan HANYA format JSON valid tanpa teks pengantar apapun. St
+                    Kembalikan HANYA format JSON valid tanpa teks pengantar apapun. Strukturnya:
+                    {{
+                        "tipe_unit": "Ekstrak nama model/tipe unit",
+                        "headline": "Satu kalimat headline jualan powerful (maks 6 kata)",
+                        "engine": "Ekstrak spek mesin/engine power",
+                        "hydraulic": "Ekstrak sistem hidrolik",
+                        "bobot": "Ekstrak berat unit",
+                        "badge1": "Keunggulan garansi/stok",
+                        "badge2": "Keunggulan layanan",
+                        "badge3": "Keunggulan lain",
+                        "copywriting": "Buat 4 poin keunggulan. Format: JUDUL | Deskripsi singkat 2 kalimat. Pisah dengan enter."
+                    }}
+                    Jika data tidak ada, isi dengan strip "-".
+                    """
+                    # --- BATAS AKHIR PROMPT ---
+
+                    api_key = st.secrets["GOOGLE_API_KEY"]
+
+# ==========================================
+# FOOTER
+# ==========================================
+st.markdown("<div class='footer'>Architected & Developed by <b>Adjie Agung</b> <br> VORTEX 4.0 - Heavy-Asset Domination System</div>", unsafe_allow_html=True) 
